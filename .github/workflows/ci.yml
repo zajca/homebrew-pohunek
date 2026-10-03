@@ -1,0 +1,66 @@
+name: CI
+
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  formula:
+    runs-on: macos-15
+    env:
+      GH_TOKEN: ${{ github.token }}
+      HOMEBREW_GITHUB_API_TOKEN: ${{ github.token }}
+      HOMEBREW_NO_AUTO_UPDATE: "1"
+      HOMEBREW_NO_INSTALL_FROM_API: "1"
+    steps:
+      - name: Check out the tap
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Tap the checkout
+        run: brew tap zajca/pohunek "$GITHUB_WORKSPACE"
+
+      - name: Style
+        run: brew style zajca/pohunek
+
+      - name: Audit
+        run: brew audit --strict --online --formula zajca/pohunek/pohunek
+
+      - name: Install
+        run: brew install zajca/pohunek/pohunek
+
+      - name: Test
+        run: brew test zajca/pohunek/pohunek
+
+      - name: Check quarantine and signatures
+        run: |
+          set -euo pipefail
+          libexec="$(brew --prefix pohunek)/libexec"
+          for name in pohunek pohunekd pohunek-sessiond; do
+            binary="$libexec/$name"
+            echo "checking $binary"
+            if xattr -p com.apple.quarantine "$binary" 2> /dev/null; then
+              echo "::error::$name carries a quarantine attribute"
+              exit 1
+            fi
+            codesign --verify --strict "$binary"
+            details="$(codesign -dvv "$binary" 2>&1)"
+            printf '%s\n' "$details"
+            if ! grep -q '^Signature=adhoc' <<< "$details"; then
+              echo "::error::$name is not ad-hoc signed"
+              exit 1
+            fi
+            if grep -q '^Authority=' <<< "$details"; then
+              echo "::error::$name has a signing authority"
+              exit 1
+            fi
+          done
+
+      - name: Verify the release archive attestation
+        run: |
+          set -euo pipefail
+          archive="$(brew --cache pohunek)"
+          gh attestation verify "$archive" --repo zajca/pohunek

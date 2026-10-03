@@ -1,0 +1,57 @@
+name: Bump
+
+# Scheduled workflows of a public repository are disabled after 60 days
+# without repository activity. A manual run (workflow_dispatch) is the fallback
+# and re-enables the schedule.
+on:
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: "Release tag to point the formula at (default: latest release)"
+        required: false
+        type: string
+  schedule:
+    - cron: "17 5 * * 1"
+
+permissions:
+  contents: write
+
+concurrency:
+  group: bump
+  cancel-in-progress: false
+
+jobs:
+  bump:
+    runs-on: ubuntu-latest
+    env:
+      GH_TOKEN: ${{ github.token }}
+      TAG: ${{ inputs.tag }}
+    steps:
+      - name: Check out the tap
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Update the formula
+        run: |
+          set -euo pipefail
+          if [ -n "$TAG" ]; then
+            scripts/bump "$TAG"
+          else
+            scripts/bump
+          fi
+
+      # A push made with GITHUB_TOKEN does not start other workflows, so the
+      # CI workflow does not run for the bump commit; run it manually when a
+      # check is wanted.
+      - name: Commit and push
+        run: |
+          set -euo pipefail
+          if git diff --quiet -- Formula/pohunek.rb; then
+            echo "formula already up to date"
+            exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          version="$(sed -n 's|^  url ".*/download/v\([0-9.]*\)/.*|\1|p' Formula/pohunek.rb)"
+          git add Formula/pohunek.rb
+          git commit -m "Update pohunek to $version"
+          git push origin HEAD:main

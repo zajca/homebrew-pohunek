@@ -1,0 +1,90 @@
+#!/usr/bin/env bash
+# Point Formula/pohunek.rb at a pohunek release.
+#
+# usage: scripts/bump [<tag>]
+#
+# Without <tag> the latest release of zajca/pohunek is used. The daemon archive
+# and its .sha256 are downloaded to a temporary directory, the checksum and the
+# GitHub build-provenance attestation are verified, and only then are `url` and
+# `sha256` rewritten. Any failure exits non-zero and leaves the formula as is.
+# Requires gh and sha256sum or shasum.
+
+set -euo pipefail
+
+readonly REPO="zajca/pohunek"
+readonly TARGET="aarch64-apple-darwin"
+# Formula path relative to this script's repository root.
+readonly FORMULA_RELATIVE="Formula/pohunek.rb"
+
+fail() {
+    printf 'bump: %s\n' "$*" >&2
+    exit 1
+}
+
+[ "$#" -le 1 ] || fail "usage: scripts/bump [<tag>]"
+
+root=$(CDPATH='' cd -- "$(dirname -- "$0")/.." && pwd -P)
+formula="$root/$FORMULA_RELATIVE"
+[ -f "$formula" ] || fail "formula not found: $formula"
+command -v gh > /dev/null || fail "gh is required"
+
+if [ "$#" -eq 1 ]; then
+    tag=$1
+else
+    tag=$(gh release view --repo "$REPO" --json tagName --jq .tagName) \
+        || fail "could not determine the latest release of $REPO"
+fi
+case $tag in
+    v[0-9]*.[0-9]*.[0-9]*) ;;
+    *) fail "tag must look like vX.Y.Z: $tag" ;;
+esac
+case ${tag#v} in
+    *[!0-9.]*) fail "tag must look like vX.Y.Z: $tag" ;;
+esac
+version=${tag#v}
+
+archive="pohunek-daemon-$version-$TARGET.tar.gz"
+checksum_file="$archive.sha256"
+
+work=$(mktemp -d)
+trap 'rm -rf -- "$work"' EXIT
+
+gh release download "$tag" --repo "$REPO" --dir "$work" \
+    --pattern "$archive" --pattern "$checksum_file" \
+    || fail "could not download $archive and $checksum_file from release $tag of $REPO"
+[ -f "$work/$archive" ] || fail "release $tag has no asset $archive"
+[ -f "$work/$checksum_file" ] || fail "release $tag has no asset $checksum_file"
+
+if command -v sha256sum > /dev/null; then
+    (cd "$work" && sha256sum -c "$checksum_file" > /dev/null) \
+        || fail "sha256 mismatch for $archive"
+elif command -v shasum > /dev/null; then
+    (cd "$work" && shasum -a 256 -c "$checksum_file" > /dev/null) \
+        || fail "sha256 mismatch for $archive"
+else
+    fail "sha256sum or shasum is required"
+fi
+
+gh attestation verify "$work/$archive" --repo "$REPO" > /dev/null \
+    || fail "build-provenance attestation verification failed for $archive"
+
+# The checksum file is `<hash>  <filename>`; the hash is the first field.
+sha256=$(awk '{ print $1; exit }' "$work/$checksum_file")
+case $sha256 in
+    *[!0-9a-f]* | '') fail "malformed checksum in $checksum_file" ;;
+esac
+[ "${#sha256}" -eq 64 ] || fail "malformed checksum in $checksum_file"
+
+url="https://github.com/$REPO/releases/download/$tag/$archive"
+
+# Rewrite into a temporary file and move it over the formula only on success.
+rewritten="$work/pohunek.rb"
+awk -v url="$url" -v sha="$sha256" '
+    /^  url "/ && !url_done { print "  url \"" url "\""; url_done = 1; next }
+    /^  sha256 "/ && !sha_done { print "  sha256 \"" sha "\""; sha_done = 1; next }
+    { print }
+    END { if (!url_done || !sha_done) exit 1 }
+' "$formula" > "$rewritten" || fail "could not find the url and sha256 lines in $FORMULA_RELATIVE"
+cat "$rewritten" > "$formula"
+
+printf 'bump: %s now points at %s\n' "$FORMULA_RELATIVE" "$tag"
