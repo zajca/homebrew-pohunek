@@ -16,9 +16,9 @@ class PohunekWeb < Formula
     strategy :github_latest
   end
 
-  depends_on "zajca/pohunek/pohunek"
   depends_on arch: :arm64
   depends_on macos: :sonoma
+  depends_on "zajca/pohunek/pohunek"
 
   def install
     # The archive's own installer copies the backend and the frontend into the
@@ -61,7 +61,7 @@ class PohunekWeb < Formula
   end
 
   test do
-    assert_predicate libexec/"frontend/index.html", :exist?
+    assert_path_exists libexec/"frontend/index.html"
     # Without a bind host the backend refuses to start and says why.
     output = shell_output("#{libexec}/pohunek-web 2>&1", 1)
     assert_match "POHUNEK_BACKEND_BIND_HOST is required", output

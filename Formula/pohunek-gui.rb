@@ -16,9 +16,9 @@ class PohunekGui < Formula
     strategy :github_latest
   end
 
-  depends_on "zajca/pohunek/pohunek"
   depends_on arch: :arm64
   depends_on macos: :sonoma
+  depends_on "zajca/pohunek/pohunek"
 
   def install
     # The bundle is kept whole so its code signature stays valid; `pohunek-gui`
