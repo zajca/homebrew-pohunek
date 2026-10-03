@@ -1,0 +1,63 @@
+#!/usr/bin/env bash
+# Check the installed files of a formula: no quarantine attribute, a strict
+# code-signature verification, an ad-hoc signature and no signing authority.
+#
+# usage: scripts/check-installed <formula>
+#
+# Run after `brew install`. pohunek and pohunek-web ship flat executables;
+# pohunek-gui ships Pohunek.app, which is verified as a whole bundle.
+
+set -euo pipefail
+
+fail() {
+    printf 'check-installed: %s\n' "$*" >&2
+    exit 1
+}
+
+[ "$#" -eq 1 ] || fail "usage: scripts/check-installed <formula>"
+formula=$1
+prefix=$(brew --prefix "$formula")
+
+check_unquarantined() {
+    if xattr -p com.apple.quarantine "$1" 2> /dev/null; then
+        fail "$1 carries a quarantine attribute"
+    fi
+}
+
+check_adhoc() {
+    local details
+    details=$(codesign -dvv "$1" 2>&1)
+    printf '%s\n' "$details"
+    grep -q '^Signature=adhoc' <<< "$details" || fail "$1 is not ad-hoc signed"
+    if grep -q '^Authority=' <<< "$details"; then
+        fail "$1 has a signing authority"
+    fi
+}
+
+case $formula in
+    pohunek)
+        for name in pohunek pohunekd pohunek-sessiond; do
+            binary=$prefix/libexec/$name
+            echo "checking $binary"
+            check_unquarantined "$binary"
+            codesign --verify --strict "$binary"
+            check_adhoc "$binary"
+        done
+        ;;
+    pohunek-web)
+        binary=$prefix/libexec/pohunek-web
+        echo "checking $binary"
+        check_unquarantined "$binary"
+        codesign --verify --strict "$binary"
+        check_adhoc "$binary"
+        ;;
+    pohunek-gui)
+        app=$prefix/Pohunek.app
+        echo "checking $app"
+        check_unquarantined "$app"
+        check_unquarantined "$app/Contents/MacOS/pohunek-gui"
+        codesign --verify --deep --strict "$app"
+        check_adhoc "$app/Contents/MacOS/pohunek-gui"
+        ;;
+    *) fail "unknown formula: $formula" ;;
+esac

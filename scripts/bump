@@ -1,27 +1,39 @@
 #!/usr/bin/env bash
-# Point Formula/pohunek.rb at a pohunek release.
+# Point a formula at a release of the repository that ships its archive.
 #
-# usage: scripts/bump [<tag>]
+# usage: scripts/bump <formula> [<tag>]
 #
-# Without <tag> the latest release of zajca/pohunek is used. The daemon archive
-# and its .sha256 are downloaded to a temporary directory, the checksum and the
-# GitHub build-provenance attestation are verified, and only then are `url` and
-# `sha256` rewritten. Any failure exits non-zero and leaves the formula as is.
-# Requires gh and sha256sum or shasum.
+# <formula> is pohunek (daemon archive of zajca/pohunek), pohunek-gui or
+# pohunek-web (archives of zajca/pohunek-work). Without <tag> the latest release
+# of that repository is used. The archive and its .sha256 are downloaded to a
+# temporary directory, the checksum and the GitHub build-provenance attestation
+# are verified, and only then are `url` and `sha256` rewritten. Any failure
+# exits non-zero and leaves the formula as is. Requires gh and sha256sum or
+# shasum.
 
 set -euo pipefail
 
-readonly REPO="zajca/pohunek"
 readonly TARGET="aarch64-apple-darwin"
-# Formula path relative to this script's repository root.
-readonly FORMULA_RELATIVE="Formula/pohunek.rb"
 
 fail() {
     printf 'bump: %s\n' "$*" >&2
     exit 1
 }
 
-[ "$#" -le 1 ] || fail "usage: scripts/bump [<tag>]"
+[ "$#" -ge 1 ] && [ "$#" -le 2 ] || fail "usage: scripts/bump <formula> [<tag>]"
+
+# Release repository and archive name prefix of each formula.
+formula_name=$1
+shift
+case $formula_name in
+    pohunek) REPO="zajca/pohunek"; ARCHIVE_PREFIX="pohunek-daemon" ;;
+    pohunek-gui) REPO="zajca/pohunek-work"; ARCHIVE_PREFIX="pohunek-gui" ;;
+    pohunek-web) REPO="zajca/pohunek-work"; ARCHIVE_PREFIX="pohunek-web" ;;
+    *) fail "unknown formula: $formula_name (expected pohunek, pohunek-gui or pohunek-web)" ;;
+esac
+readonly REPO ARCHIVE_PREFIX
+# Formula path relative to this script's repository root.
+readonly FORMULA_RELATIVE="Formula/$formula_name.rb"
 
 root=$(CDPATH='' cd -- "$(dirname -- "$0")/.." && pwd -P)
 formula="$root/$FORMULA_RELATIVE"
@@ -43,7 +55,7 @@ case ${tag#v} in
 esac
 version=${tag#v}
 
-archive="pohunek-daemon-$version-$TARGET.tar.gz"
+archive="$ARCHIVE_PREFIX-$version-$TARGET.tar.gz"
 checksum_file="$archive.sha256"
 
 work=$(mktemp -d)
@@ -78,7 +90,7 @@ esac
 url="https://github.com/$REPO/releases/download/$tag/$archive"
 
 # Rewrite into a temporary file and move it over the formula only on success.
-rewritten="$work/pohunek.rb"
+rewritten="$work/$formula_name.rb"
 awk -v url="$url" -v sha="$sha256" '
     /^  url "/ && !url_done { print "  url \"" url "\""; url_done = 1; next }
     /^  sha256 "/ && !sha_done { print "  sha256 \"" sha "\""; sha_done = 1; next }

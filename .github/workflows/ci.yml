@@ -10,12 +10,29 @@ permissions:
 
 jobs:
   formula:
+    name: formula (${{ matrix.formula }})
     runs-on: macos-15
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - formula: pohunek
+            repository: zajca/pohunek
+            surface: false
+          - formula: pohunek-gui
+            repository: zajca/pohunek-work
+            surface: true
+          - formula: pohunek-web
+            repository: zajca/pohunek-work
+            surface: true
     env:
       GH_TOKEN: ${{ github.token }}
       HOMEBREW_GITHUB_API_TOKEN: ${{ github.token }}
       HOMEBREW_NO_AUTO_UPDATE: "1"
       HOMEBREW_NO_INSTALL_FROM_API: "1"
+      # Protocol version spoken by the surface formulae (pohunek-work, public
+      # protocol v3); the installed core must support it.
+      SURFACE_PROTOCOL: "3"
     steps:
       - name: Check out the tap
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -27,40 +44,23 @@ jobs:
         run: brew style zajca/pohunek
 
       - name: Audit
-        run: brew audit --strict --online --formula zajca/pohunek/pohunek
+        run: brew audit --strict --online --formula "zajca/pohunek/${{ matrix.formula }}"
 
       - name: Install
-        run: brew install zajca/pohunek/pohunek
+        run: brew install "zajca/pohunek/${{ matrix.formula }}"
 
       - name: Test
-        run: brew test zajca/pohunek/pohunek
+        run: brew test "zajca/pohunek/${{ matrix.formula }}"
 
       - name: Check quarantine and signatures
-        run: |
-          set -euo pipefail
-          libexec="$(brew --prefix pohunek)/libexec"
-          for name in pohunek pohunekd pohunek-sessiond; do
-            binary="$libexec/$name"
-            echo "checking $binary"
-            if xattr -p com.apple.quarantine "$binary" 2> /dev/null; then
-              echo "::error::$name carries a quarantine attribute"
-              exit 1
-            fi
-            codesign --verify --strict "$binary"
-            details="$(codesign -dvv "$binary" 2>&1)"
-            printf '%s\n' "$details"
-            if ! grep -q '^Signature=adhoc' <<< "$details"; then
-              echo "::error::$name is not ad-hoc signed"
-              exit 1
-            fi
-            if grep -q '^Authority=' <<< "$details"; then
-              echo "::error::$name has a signing authority"
-              exit 1
-            fi
-          done
+        run: scripts/check-installed "${{ matrix.formula }}"
+
+      - name: Check that the installed core supports the surface protocol
+        if: ${{ matrix.surface }}
+        run: scripts/check-compatible "$SURFACE_PROTOCOL"
 
       - name: Verify the release archive attestation
         run: |
           set -euo pipefail
-          archive="$(brew --cache pohunek)"
-          gh attestation verify "$archive" --repo zajca/pohunek
+          archive="$(brew --cache "${{ matrix.formula }}")"
+          gh attestation verify "$archive" --repo "${{ matrix.repository }}"
