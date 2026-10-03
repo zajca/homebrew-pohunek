@@ -40,6 +40,11 @@ jobs:
       - name: Tap the checkout
         run: brew tap zajca/pohunek "$GITHUB_WORKSPACE"
 
+      # The surface formulae depend on `zajca/pohunek/pohunek`, a formula of the
+      # same tap, which Homebrew refuses to load from an untrusted tap.
+      - name: Trust the tap
+        run: brew trust zajca/pohunek
+
       - name: Style
         run: brew style zajca/pohunek
 
