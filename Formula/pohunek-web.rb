@@ -26,7 +26,10 @@ class PohunekWeb < Formula
     # files next to itself, so the tree stays intact in libexec and
     # `pohunek-web-install` runs the installer from there.
     libexec.install "pohunek-web", "frontend", "install.sh", "backend.env.example", "packaging"
-    pkgshare.install "README.md", "backend.env.example"
+    # `install` moves files, so the template the installer needs next to itself
+    # is copied for the caveats rather than installed a second time.
+    pkgshare.install "README.md"
+    cp libexec/"backend.env.example", pkgshare
     (bin/"pohunek-web-install").write <<~SH
       #!/bin/sh
       exec "#{libexec}/install.sh" "$@"
