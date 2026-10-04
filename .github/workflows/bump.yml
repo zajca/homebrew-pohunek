@@ -7,10 +7,11 @@ on:
   workflow_dispatch:
     inputs:
       formula:
-        description: "Formula to bump (default: every formula); required with a tag"
+        description: "Formula to bump; a tag needs a single formula"
         required: false
+        default: all
         type: choice
-        options: ["", pohunek, pohunek-gui, pohunek-web]
+        options: [all, pohunek, pohunek-gui, pohunek-web]
       tag:
         description: "Release tag to point the formula at, with the formula's prefix (v, gui-v or web-v); default: newest release of that surface"
         required: false
@@ -46,8 +47,12 @@ jobs:
       - name: Update the formula
         run: |
           set -euo pipefail
+          # A scheduled run has no inputs, so an empty value means every formula.
+          if [ "$ONLY_FORMULA" = "all" ]; then
+            ONLY_FORMULA=""
+          fi
           if [ -n "$TAG" ] && [ -z "$ONLY_FORMULA" ]; then
-            echo "::error::a tag needs the formula input: each formula has its own tag prefix"
+            echo "::error::a tag needs a single formula: each formula has its own tag prefix"
             exit 1
           fi
           if [ -n "$ONLY_FORMULA" ] && [ "$ONLY_FORMULA" != "$FORMULA" ]; then
