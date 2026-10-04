@@ -1,8 +1,19 @@
 # homebrew-pohunek
 
-Homebrew tap for [pohunek](https://github.com/zajca/pohunek). The formula
-installs the pre-built daemon archive (`pohunek`, `pohunekd`,
-`pohunek-sessiond`) for Apple silicon Macs.
+Homebrew tap for [pohunek](https://github.com/zajca/pohunek) and its user
+surfaces from [pohunek-work](https://github.com/zajca/pohunek-work). The
+formulae install pre-built archives for Apple silicon Macs:
+
+| Formula | Installs | Release repository |
+|---------|----------|--------------------|
+| `pohunek` | CLI and daemon (`pohunek`, `pohunekd`, `pohunek-sessiond`) | `zajca/pohunek` |
+| `pohunek-gui` | `Pohunek.app`, native GUI (`pohunek-gui` on the `PATH`) | `zajca/pohunek-work` |
+| `pohunek-web` | web control center backend and frontend | `zajca/pohunek-work` |
+
+`pohunek-gui` and `pohunek-web` depend on `pohunek`: both talk to its daemon.
+Homebrew installs the latest `pohunek`, not the release a surface was built
+against, so CI checks that the installed `pohunek` supports the protocol
+version the surfaces speak (`scripts/check-compatible`).
 
 ## Install
 
@@ -29,6 +40,21 @@ them into `~/.local/libexec/pohunek/<version>/` and registers a launchd agent.
 The service always uses the default `~/.local` prefix, because its directory
 trust checks refuse prefixes under `/opt/homebrew`.
 
+## The GUI and the web control center
+
+```sh
+brew install zajca/pohunek/pohunek-gui   # Pohunek.app
+brew install zajca/pohunek/pohunek-web   # web control center
+pohunek-web-install                      # per-user install of the backend
+```
+
+`pohunek-gui` keeps `Pohunek.app` whole in `$(brew --prefix pohunek-gui)` so its
+code signature stays valid. `pohunek-web-install` runs the installer of the web
+archive (data under `~/.local/share/pohunek/web`, a launchd agent, and
+`~/.config/pohunek/backend.env`); run it again after every `brew upgrade
+pohunek-web` and run `pohunek-web-install --uninstall` before `brew uninstall
+pohunek-web`. `brew info <formula>` shows the exact steps.
+
 ## Ad-hoc signing, Gatekeeper and Keychain
 
 The binaries are ad-hoc signed and not notarized, and no Apple Developer
@@ -43,8 +69,10 @@ certificate is involved.
 - Homebrew re-signs ad hoc any Mach-O file it relinks, so installed binaries stay
   ad-hoc signed.
 
-CI checks that the installed binaries have no quarantine attribute, verify with
-`codesign --verify --strict`, show `Signature=adhoc`, and carry no `Authority=`.
+CI checks, for every formula, that the installed files have no quarantine
+attribute, verify with `codesign --verify --strict` (`--deep` for the app
+bundle), show `Signature=adhoc`, and carry no `Authority=`
+(`scripts/check-installed`).
 
 ## Verify provenance
 
@@ -53,19 +81,32 @@ archive Homebrew downloaded:
 
 ```sh
 gh attestation verify "$(brew --cache pohunek)" --repo zajca/pohunek
+gh attestation verify "$(brew --cache pohunek-gui)" --repo zajca/pohunek-work
+gh attestation verify "$(brew --cache pohunek-web)" --repo zajca/pohunek-work
 ```
 
 ## How the bump works
 
-`scripts/bump [<tag>]` points the formula at a release (the latest one without
-an argument). It downloads `pohunek-daemon-X.Y.Z-aarch64-apple-darwin.tar.gz`
-and its `.sha256` from the release, checks the checksum, runs
-`gh attestation verify`, and only then rewrites `url` and `sha256` in
-`Formula/pohunek.rb`. If any check fails it exits non-zero and leaves the
+`scripts/bump <formula> [<tag>]` points a formula at a release of its repository.
+`zajca/pohunek-work` versions its surfaces independently, so each formula has
+its own tag prefix: `vX.Y.Z` for `pohunek`, `gui-vX.Y.Z` for `pohunek-gui` and
+`web-vX.Y.Z` for `pohunek-web`. Without a tag the newest published release with
+that prefix is used; it fails when there is none. It downloads the formula's
+`aarch64-apple-darwin` archive (`pohunek-daemon-`, `pohunek-gui-` or
+`pohunek-web-` `X.Y.Z-aarch64-apple-darwin.tar.gz`) and its `.sha256`, checks
+the checksum, runs `gh attestation verify`, and only then rewrites `url` and
+`sha256` in `Formula/<formula>.rb`. If any check fails it exits non-zero and leaves the
 formula untouched.
 
-The `Bump` workflow runs the script weekly and on manual dispatch (optional
-`tag` input), then commits any change to `main` as `github-actions[bot]` using
+A published `gui-v*` or `web-v*` release of `zajca/pohunek-work` starts the
+`Bump` workflow right away: that repository's `notify-tap.yml` sends a
+`pohunek-work-release` `repository_dispatch` whose payload carries the formula and
+the tag, and `Bump` runs the script for that one formula and tag. An unknown
+formula in the payload fails the run. The weekly run below stays as a fallback
+for a missed dispatch.
+
+The `Bump` workflow runs the script for every formula weekly and on manual
+dispatch (`formula` input, default `all`; the optional `tag` input needs a single formula, because the tag prefix differs per formula), then commits any change to `main` as `github-actions[bot]` using
 only `GITHUB_TOKEN`. Scheduled workflows of a public repository are disabled
 after 60 days without repository activity; run the workflow manually in that
 case. The formula in the repository carries a placeholder checksum until the

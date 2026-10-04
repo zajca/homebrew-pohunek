@@ -1,0 +1,33 @@
+#!/usr/bin/env bash
+# Check that the installed core accepts the protocol version a surface speaks.
+#
+# usage: scripts/check-compatible <protocol-version>
+#
+# Homebrew installs the latest core, not the core release a surface was built
+# against, so a surface formula is only safe while the installed `pohunek`
+# reports a protocol range that contains the version the surface speaks. Every
+# `--json` envelope carries that range, success or failure, so the exit status
+# of `doctor` does not matter here; only the envelope does.
+
+set -euo pipefail
+
+fail() {
+    printf 'check-compatible: %s\n' "$*" >&2
+    exit 1
+}
+
+[ "$#" -eq 1 ] || fail "usage: scripts/check-compatible <protocol-version>"
+wanted=$1
+case $wanted in
+    '' | *[!0-9]*) fail "protocol version must be a number: $wanted" ;;
+esac
+
+report=$(pohunek doctor --json || true)
+python3 -c '
+import json, sys
+wanted = int(sys.argv[1])
+protocol = json.loads(sys.stdin.read())["protocol"]
+low, high = protocol["minimum"], protocol["maximum"]
+print(f"installed pohunek speaks protocol {low}..{high}, surface needs {wanted}")
+sys.exit(0 if low <= wanted <= high else 1)
+' "$wanted" <<< "$report" || fail "protocol $wanted is outside the range the installed pohunek supports"
