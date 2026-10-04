@@ -16,14 +16,21 @@ on:
         description: "Release tag to point the formula at, with the formula's prefix (v, gui-v or web-v); default: newest release of that surface"
         required: false
         type: string
+  # Sent by zajca/pohunek-work (notify-tap.yml) once a gui or web release is
+  # published; the payload carries `formula` and `tag`. Dispatch events only run
+  # from the default branch.
+  repository_dispatch:
+    types: [pohunek-work-release]
   schedule:
     - cron: "17 5 * * 1"
 
 permissions:
   contents: write
 
+# One group per formula, so that releases of different surfaces do not replace
+# each other while queued.
 concurrency:
-  group: bump
+  group: bump-${{ github.event.client_payload.formula || inputs.formula || 'all' }}
   cancel-in-progress: false
 
 jobs:
@@ -37,8 +44,8 @@ jobs:
         formula: [pohunek, pohunek-gui, pohunek-web]
     env:
       GH_TOKEN: ${{ github.token }}
-      TAG: ${{ inputs.tag }}
-      ONLY_FORMULA: ${{ inputs.formula }}
+      TAG: ${{ inputs.tag || github.event.client_payload.tag }}
+      ONLY_FORMULA: ${{ inputs.formula || github.event.client_payload.formula }}
       FORMULA: ${{ matrix.formula }}
     steps:
       - name: Check out the tap
@@ -51,6 +58,15 @@ jobs:
           if [ "$ONLY_FORMULA" = "all" ]; then
             ONLY_FORMULA=""
           fi
+          # The payload of a dispatch is input from outside: an unknown formula
+          # must fail instead of skipping every matrix job.
+          case "$ONLY_FORMULA" in
+            "" | pohunek | pohunek-gui | pohunek-web) ;;
+            *)
+              echo "::error::unknown formula: $ONLY_FORMULA"
+              exit 1
+              ;;
+          esac
           if [ -n "$TAG" ] && [ -z "$ONLY_FORMULA" ]; then
             echo "::error::a tag needs a single formula: each formula has its own tag prefix"
             exit 1
@@ -80,5 +96,13 @@ jobs:
           version="$(sed -n 's|^  url ".*/download/[a-z-]*v\([0-9.]*\)/.*|\1|p' "Formula/$FORMULA.rb")"
           git add "Formula/$FORMULA.rb"
           git commit -m "Update $FORMULA to $version"
-          git pull --rebase origin main
-          git push origin HEAD:main
+          # Bumps of different formulas can run at the same time and push to main.
+          for attempt in 1 2 3; do
+            git pull --rebase origin main
+            if git push origin HEAD:main; then
+              exit 0
+            fi
+            echo "push attempt $attempt failed"
+          done
+          echo "::error::could not push the bump commit"
+          exit 1

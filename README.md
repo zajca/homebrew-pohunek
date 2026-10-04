@@ -98,6 +98,13 @@ the checksum, runs `gh attestation verify`, and only then rewrites `url` and
 `sha256` in `Formula/<formula>.rb`. If any check fails it exits non-zero and leaves the
 formula untouched.
 
+A published `gui-v*` or `web-v*` release of `zajca/pohunek-work` starts the
+`Bump` workflow right away: that repository's `notify-tap.yml` sends a
+`pohunek-work-release` `repository_dispatch` whose payload carries the formula and
+the tag, and `Bump` runs the script for that one formula and tag. An unknown
+formula in the payload fails the run. The weekly run below stays as a fallback
+for a missed dispatch.
+
 The `Bump` workflow runs the script for every formula weekly and on manual
 dispatch (`formula` input, default `all`; the optional `tag` input needs a single formula, because the tag prefix differs per formula), then commits any change to `main` as `github-actions[bot]` using
 only `GITHUB_TOKEN`. Scheduled workflows of a public repository are disabled
