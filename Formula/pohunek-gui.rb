@@ -7,8 +7,8 @@
 class PohunekGui < Formula
   desc "Native desktop GUI for supervising pohunek sessions"
   homepage "https://github.com/zajca/pohunek-work"
-  url "https://github.com/zajca/pohunek-work/releases/download/gui-v0.2.1/pohunek-gui-0.2.1-aarch64-apple-darwin.tar.gz"
-  sha256 "8f42d53f965a992189883c4962af3bb336425cd05aa73a9ba44b4411db011a37"
+  url "https://github.com/zajca/pohunek-work/releases/download/gui-v0.3.0/pohunek-gui-0.3.0-aarch64-apple-darwin.tar.gz"
+  sha256 "8a27e16c635a760dd59c31a5ce0d3f381f17e339c7f6bd19f510dcfae7c432d3"
   license "MIT"
 
   livecheck do
