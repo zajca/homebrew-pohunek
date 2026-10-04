@@ -87,16 +87,26 @@ gh attestation verify "$(brew --cache pohunek-web)" --repo zajca/pohunek-work
 
 ## How the bump works
 
-`scripts/bump <formula> [<tag>]` points a formula at a release of its repository
-(the latest one without a tag). It downloads the formula's
+`scripts/bump <formula> [<tag>]` points a formula at a release of its repository.
+`zajca/pohunek-work` versions its surfaces independently, so each formula has
+its own tag prefix: `vX.Y.Z` for `pohunek`, `gui-vX.Y.Z` for `pohunek-gui` and
+`web-vX.Y.Z` for `pohunek-web`. Without a tag the newest published release with
+that prefix is used; it fails when there is none. It downloads the formula's
 `aarch64-apple-darwin` archive (`pohunek-daemon-`, `pohunek-gui-` or
 `pohunek-web-` `X.Y.Z-aarch64-apple-darwin.tar.gz`) and its `.sha256`, checks
 the checksum, runs `gh attestation verify`, and only then rewrites `url` and
 `sha256` in `Formula/<formula>.rb`. If any check fails it exits non-zero and leaves the
 formula untouched.
 
+A published `gui-v*` or `web-v*` release of `zajca/pohunek-work` starts the
+`Bump` workflow right away: that repository's `notify-tap.yml` sends a
+`pohunek-work-release` `repository_dispatch` whose payload carries the formula and
+the tag, and `Bump` runs the script for that one formula and tag. An unknown
+formula in the payload fails the run. The weekly run below stays as a fallback
+for a missed dispatch.
+
 The `Bump` workflow runs the script for every formula weekly and on manual
-dispatch (optional `tag` input, applied to every formula), then commits any change to `main` as `github-actions[bot]` using
+dispatch (`formula` input, default `all`; the optional `tag` input needs a single formula, because the tag prefix differs per formula), then commits any change to `main` as `github-actions[bot]` using
 only `GITHUB_TOKEN`. Scheduled workflows of a public repository are disabled
 after 60 days without repository activity; run the workflow manually in that
 case. The formula in the repository carries a placeholder checksum until the
