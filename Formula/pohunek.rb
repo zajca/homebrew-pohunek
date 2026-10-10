@@ -7,8 +7,8 @@
 class Pohunek < Formula
   desc "CLI and daemon for supervising long-running AI coding sessions"
   homepage "https://github.com/zajca/pohunek"
-  url "https://github.com/zajca/pohunek/releases/download/v0.33.1/pohunek-daemon-0.33.1-aarch64-apple-darwin.tar.gz"
-  sha256 "7172f290413c6900c9087389f6f8564a26641a5b8e5cef76ab91818e48563845"
+  url "https://github.com/zajca/pohunek/releases/download/v0.34.2/pohunek-daemon-0.34.2-aarch64-apple-darwin.tar.gz"
+  sha256 "e55fe3a963a0f13ad8ca2ac10d65cf7ad26ea0a9c4068dac923baa35ce2595b6"
   license "MIT"
 
   livecheck do
