@@ -1,0 +1,60 @@
+# typed: false
+# frozen_string_literal: true
+
+# Installs the pre-built, ad-hoc signed Pohunek Companion.app, the desktop
+# sidebar for the pohunek daemon. `scripts/bump pohunek-companion` rewrites
+# `url` and `sha256` for each release; the version is derived from the URL.
+class PohunekCompanion < Formula
+  desc "Desktop sidebar companion for supervising pohunek sessions"
+  homepage "https://github.com/pohunekd/pohunek-companion"
+  url "https://github.com/pohunekd/pohunek-companion/releases/download/v0.1.0/pohunek-companion-0.1.0-aarch64-apple-darwin.tar.gz"
+  sha256 "1986538b33ff7f64bbeb48ff66ca5d73b4161e10a94489a3c7506c5b1a2c5a02"
+  license "MIT"
+
+  livecheck do
+    url :stable
+    strategy :github_latest
+  end
+
+  depends_on arch: :arm64
+  depends_on macos: :sonoma
+  depends_on "zajca/pohunek/pohunek"
+
+  def install
+    # The bundle is kept whole so its code signature stays valid; `pohunek-companion`
+    # on the PATH is a symlink to the executable inside it.
+    prefix.install "Pohunek Companion.app"
+    bin.install_symlink prefix/"Pohunek Companion.app/Contents/MacOS/pohunek-companion"
+  end
+
+  def caveats
+    <<~EOS
+      Pohunek Companion.app is installed at:
+        #{opt_prefix}/Pohunek Companion.app
+
+      Open it with:
+        open "#{opt_prefix}/Pohunek Companion.app"
+      or start it from a terminal with `pohunek-companion`.
+
+      The companion talks to the pohunek daemon from the pohunek formula; register
+      the background service with `pohunek service install` (see `brew info pohunek`).
+
+      The app is ad-hoc signed, not notarized. macOS may ask again for Keychain
+      access after an upgrade because the code signature changes.
+
+      Verify the provenance of the release archive with:
+        gh attestation verify "$(brew --cache pohunek-companion)" --repo pohunekd/pohunek-companion
+    EOS
+  end
+
+  test do
+    app = prefix/"Pohunek Companion.app"
+    system "/usr/bin/codesign", "--verify", "--deep", "--strict", app
+    plist = app/"Contents/Info.plist"
+    assert_equal "io.github.pohunekd.companion",
+                 shell_output("/usr/bin/plutil -extract CFBundleIdentifier raw -o - #{plist}").strip
+    assert_equal version.to_s,
+                 shell_output("/usr/bin/plutil -extract CFBundleShortVersionString raw -o - #{plist}").strip
+    assert_predicate bin/"pohunek-companion", :executable?
+  end
+end

@@ -11,7 +11,7 @@ on:
         required: false
         default: all
         type: choice
-        options: [all, pohunek, pohunek-gui, pohunek-web]
+        options: [all, pohunek, pohunek-gui, pohunek-web, pohunek-companion]
       tag:
         description: "Release tag to point the formula at, with the formula's prefix (v, gui-v or web-v); default: newest release of that surface"
         required: false
@@ -41,7 +41,7 @@ jobs:
       fail-fast: false
       max-parallel: 1
       matrix:
-        formula: [pohunek, pohunek-gui, pohunek-web]
+        formula: [pohunek, pohunek-gui, pohunek-web, pohunek-companion]
     env:
       GH_TOKEN: ${{ github.token }}
       TAG: ${{ inputs.tag || github.event.client_payload.tag }}
@@ -61,7 +61,7 @@ jobs:
           # The payload of a dispatch is input from outside: an unknown formula
           # must fail instead of skipping every matrix job.
           case "$ONLY_FORMULA" in
-            "" | pohunek | pohunek-gui | pohunek-web) ;;
+            "" | pohunek | pohunek-gui | pohunek-web | pohunek-companion) ;;
             *)
               echo "::error::unknown formula: $ONLY_FORMULA"
               exit 1
