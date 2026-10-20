@@ -51,10 +51,12 @@ class PohunekCompanion < Formula
     app = prefix/"Pohunek Companion.app"
     system "/usr/bin/codesign", "--verify", "--deep", "--strict", app
     plist = app/"Contents/Info.plist"
-    assert_equal "io.github.pohunekd.companion",
-                 shell_output("/usr/bin/plutil -extract CFBundleIdentifier raw -o - #{plist}").strip
-    assert_equal version.to_s,
-                 shell_output("/usr/bin/plutil -extract CFBundleShortVersionString raw -o - #{plist}").strip
+    # The bundle path contains a space, so the arguments are passed without a shell.
+    plist_value = lambda do |key|
+      Utils.safe_popen_read("/usr/bin/plutil", "-extract", key, "raw", "-o", "-", plist).strip
+    end
+    assert_equal "io.github.pohunekd.companion", plist_value.call("CFBundleIdentifier")
+    assert_equal version.to_s, plist_value.call("CFBundleShortVersionString")
     assert_predicate bin/"pohunek-companion", :executable?
   end
 end
