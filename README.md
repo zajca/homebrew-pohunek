@@ -9,8 +9,9 @@ formulae install pre-built archives for Apple silicon Macs:
 | `pohunek` | CLI and daemon (`pohunek`, `pohunekd`, `pohunek-sessiond`) | `zajca/pohunek` |
 | `pohunek-gui` | `Pohunek.app`, native GUI (`pohunek-gui` on the `PATH`) | `zajca/pohunek-work` |
 | `pohunek-web` | web control center backend and frontend | `zajca/pohunek-work` |
+| `pohunek-companion` | `Pohunek Companion.app`, desktop sidebar (`pohunek-companion` on the `PATH`) | `pohunekd/pohunek-companion` |
 
-`pohunek-gui` and `pohunek-web` depend on `pohunek`: both talk to its daemon.
+`pohunek-gui`, `pohunek-web` and `pohunek-companion` depend on `pohunek`: all talk to its daemon.
 Homebrew installs the latest `pohunek`, not the release a surface was built
 against, so CI checks that the installed `pohunek` supports the protocol
 version the surfaces speak (`scripts/check-compatible`).
@@ -45,10 +46,12 @@ trust checks refuse prefixes under `/opt/homebrew`.
 ```sh
 brew install zajca/pohunek/pohunek-gui   # Pohunek.app
 brew install zajca/pohunek/pohunek-web   # web control center
+brew install zajca/pohunek/pohunek-companion   # Pohunek Companion.app
 pohunek-web-install                      # per-user install of the backend
 ```
 
-`pohunek-gui` keeps `Pohunek.app` whole in `$(brew --prefix pohunek-gui)` so its
+`pohunek-gui` keeps `Pohunek.app` whole in `$(brew --prefix pohunek-gui)` (and
+`pohunek-companion` keeps `Pohunek Companion.app` whole in its prefix) so the
 code signature stays valid. `pohunek-web-install` runs the installer of the web
 archive (data under `~/.local/share/pohunek/web`, a launchd agent, and
 `~/.config/pohunek/backend.env`); run it again after every `brew upgrade
@@ -83,6 +86,7 @@ archive Homebrew downloaded:
 gh attestation verify "$(brew --cache pohunek)" --repo zajca/pohunek
 gh attestation verify "$(brew --cache pohunek-gui)" --repo zajca/pohunek-work
 gh attestation verify "$(brew --cache pohunek-web)" --repo zajca/pohunek-work
+gh attestation verify "$(brew --cache pohunek-companion)" --repo pohunekd/pohunek-companion
 ```
 
 ## How the bump works
@@ -90,10 +94,11 @@ gh attestation verify "$(brew --cache pohunek-web)" --repo zajca/pohunek-work
 `scripts/bump <formula> [<tag>]` points a formula at a release of its repository.
 `zajca/pohunek-work` versions its surfaces independently, so each formula has
 its own tag prefix: `vX.Y.Z` for `pohunek`, `gui-vX.Y.Z` for `pohunek-gui` and
-`web-vX.Y.Z` for `pohunek-web`. Without a tag the newest published release with
+`web-vX.Y.Z` for `pohunek-web`; `pohunek-companion` also uses `vX.Y.Z`, read only from
+`pohunekd/pohunek-companion`, so it does not clash with `pohunek`. Without a tag the newest published release with
 that prefix is used; it fails when there is none. It downloads the formula's
-`aarch64-apple-darwin` archive (`pohunek-daemon-`, `pohunek-gui-` or
-`pohunek-web-` `X.Y.Z-aarch64-apple-darwin.tar.gz`) and its `.sha256`, checks
+`aarch64-apple-darwin` archive (`pohunek-daemon-`, `pohunek-gui-`,
+`pohunek-web-` or `pohunek-companion-` `X.Y.Z-aarch64-apple-darwin.tar.gz`) and its `.sha256`, checks
 the checksum, runs `gh attestation verify`, and only then rewrites `url` and
 `sha256` in `Formula/<formula>.rb`. If any check fails it exits non-zero and leaves the
 formula untouched.

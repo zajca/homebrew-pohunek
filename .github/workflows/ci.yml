@@ -25,6 +25,9 @@ jobs:
           - formula: pohunek-web
             repository: zajca/pohunek-work
             surface: true
+          - formula: pohunek-companion
+            repository: pohunekd/pohunek-companion
+            surface: false
     env:
       GH_TOKEN: ${{ github.token }}
       HOMEBREW_GITHUB_API_TOKEN: ${{ github.token }}

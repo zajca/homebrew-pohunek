@@ -4,9 +4,11 @@
 # usage: scripts/bump <formula> [<tag>]
 #
 # <formula> is pohunek (daemon archive of zajca/pohunek), pohunek-gui or
-# pohunek-web (archives of zajca/pohunek-work). <tag> carries the formula's own
-# prefix: vX.Y.Z for pohunek, gui-vX.Y.Z for pohunek-gui and web-vX.Y.Z for
-# pohunek-web, because zajca/pohunek-work versions its surfaces independently.
+# pohunek-web (archives of zajca/pohunek-work) or pohunek-companion (archive of
+# pohunekd/pohunek-companion). <tag> carries the formula's own prefix: vX.Y.Z
+# for pohunek and pohunek-companion (each read from its own repository),
+# gui-vX.Y.Z for pohunek-gui and web-vX.Y.Z for pohunek-web, because
+# zajca/pohunek-work versions its surfaces independently.
 # Without <tag> the newest published release with that prefix is used. The archive and its .sha256 are downloaded to a
 # temporary directory, the checksum and the GitHub build-provenance attestation
 # are verified, and only then are `url` and `sha256` rewritten. Any failure
@@ -31,7 +33,8 @@ case $formula_name in
     pohunek) REPO="zajca/pohunek"; ARCHIVE_PREFIX="pohunek-daemon"; TAG_PREFIX="v" ;;
     pohunek-gui) REPO="zajca/pohunek-work"; ARCHIVE_PREFIX="pohunek-gui"; TAG_PREFIX="gui-v" ;;
     pohunek-web) REPO="zajca/pohunek-work"; ARCHIVE_PREFIX="pohunek-web"; TAG_PREFIX="web-v" ;;
-    *) fail "unknown formula: $formula_name (expected pohunek, pohunek-gui or pohunek-web)" ;;
+    pohunek-companion) REPO="pohunekd/pohunek-companion"; ARCHIVE_PREFIX="pohunek-companion"; TAG_PREFIX="v" ;;
+    *) fail "unknown formula: $formula_name (expected pohunek, pohunek-gui, pohunek-web or pohunek-companion)" ;;
 esac
 readonly REPO ARCHIVE_PREFIX TAG_PREFIX
 # Formula path relative to this script's repository root.

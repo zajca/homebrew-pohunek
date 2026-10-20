@@ -5,7 +5,7 @@
 # usage: scripts/check-installed <formula>
 #
 # Run after `brew install`. pohunek and pohunek-web ship flat executables;
-# pohunek-gui ships Pohunek.app, which is verified as a whole bundle.
+# pohunek-gui and pohunek-companion ship an app bundle, which is verified as a whole.
 
 set -euo pipefail
 
@@ -58,6 +58,14 @@ case $formula in
         check_unquarantined "$app/Contents/MacOS/pohunek-gui"
         codesign --verify --deep --strict "$app"
         check_adhoc "$app/Contents/MacOS/pohunek-gui"
+        ;;
+    pohunek-companion)
+        app="$prefix/Pohunek Companion.app"
+        echo "checking $app"
+        check_unquarantined "$app"
+        check_unquarantined "$app/Contents/MacOS/pohunek-companion"
+        codesign --verify --deep --strict "$app"
+        check_adhoc "$app/Contents/MacOS/pohunek-companion"
         ;;
     *) fail "unknown formula: $formula" ;;
 esac
