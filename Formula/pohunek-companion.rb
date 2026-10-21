@@ -7,8 +7,8 @@
 class PohunekCompanion < Formula
   desc "Desktop sidebar companion for supervising pohunek sessions"
   homepage "https://github.com/pohunekd/pohunek-companion"
-  url "https://github.com/pohunekd/pohunek-companion/releases/download/v0.1.3/pohunek-companion-0.1.3-aarch64-apple-darwin.tar.gz"
-  sha256 "37b83ea07c8abceba0491ab70e083d0140691781b75d917dc13b52a8fb280363"
+  url "https://github.com/pohunekd/pohunek-companion/releases/download/v0.1.4/pohunek-companion-0.1.4-aarch64-apple-darwin.tar.gz"
+  sha256 "f987319f59d3b231cc0354517c83cb5b98a027a829117025fd7952932a04ab95"
   license "MIT"
 
   livecheck do
