@@ -1,3 +1,13 @@
+<p align="center">
+  <img src=".github/assets/readme-hero.png" alt="homebrew-pohunek: Homebrew tap for pohunek and its surfaces on Apple silicon. Engraving of a farmhand pouring tankards foaming with terminal prompts from an oak keg." />
+</p>
+
+<p align="center">
+  <a href="https://pohunek.dev/install/">pohunek.dev/install</a>
+  ·
+  <a href="https://pohunek.dev/docs/">Pohunek docs</a>
+</p>
+
 # homebrew-pohunek
 
 Homebrew tap for [pohunek](https://github.com/zajca/pohunek) and its user
