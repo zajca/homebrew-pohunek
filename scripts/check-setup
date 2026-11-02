@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
-# Run `pohunek setup` of the installed formula in a throwaway home and check that
-# the installed daemon loaded the catalog trust anchor.
+# Install the service of the installed formula in a throwaway home, check that
+# the daemon loaded the catalog trust anchor, then run `pohunek setup`.
 #
 # usage: scripts/check-setup
 #
@@ -42,10 +42,7 @@ cleanup() {
 }
 trap cleanup EXIT
 
-if ! "$pohunek" setup --yes; then
-    "$pohunek" doctor --json >&2 || true
-    fail "pohunek setup refused the Homebrew layout"
-fi
+"$pohunek" service install || fail "pohunek service install failed"
 
 doctor=$("$pohunek" doctor --json) || true
 status=$(printf '%s' "$doctor" | jq -r '[.checks[] | select(.name == "catalog_trust_anchor")][0].status // "missing"')
@@ -53,4 +50,9 @@ status=$(printf '%s' "$doctor" | jq -r '[.checks[] | select(.name == "catalog_tr
     printf '%s\n' "$doctor" >&2
     fail "catalog_trust_anchor is $status, expected ok"
 }
-printf 'check-setup: setup applied and the catalog trust anchor is loaded\n'
+
+if ! "$pohunek" setup --yes; then
+    "$pohunek" doctor --json >&2 || true
+    fail "pohunek setup refused the Homebrew layout after the service was installed"
+fi
+printf 'check-setup: service installed, the catalog trust anchor is loaded and setup applied\n'

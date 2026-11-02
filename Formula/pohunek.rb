@@ -38,7 +38,8 @@ class Pohunek < Formula
 
   def caveats
     <<~EOS
-      Set up pohunek and register the background service after installing:
+      Register the background service, then set pohunek up:
+        pohunek service install
         pohunek setup
 
       Run this after every `brew upgrade pohunek`:
