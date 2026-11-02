@@ -32,13 +32,17 @@ printf 'check-setup: Cellar used: %s\n' "$(stat -f '%Su:%Sg %Lp' "$cellar")"
 
 work=$(mktemp -d "${RUNNER_TEMP:-${TMPDIR:-/tmp}}/check-setup.XXXXXX")
 chmod 0700 "$work"
-mkdir -m 0700 "$work/home" "$work/run"
-export HOME="$work/home" XDG_RUNTIME_DIR="$work/run"
+# A worker socket path is limited to 103 bytes on macOS, so the runtime
+# directory is a short private directory of its own.
+runtime=$(mktemp -d /tmp/phcs.XXXXXX)
+chmod 0700 "$runtime"
+mkdir -m 0700 "$work/home"
+export HOME="$work/home" XDG_RUNTIME_DIR="$runtime"
 unset XDG_CONFIG_HOME XDG_DATA_HOME XDG_STATE_HOME
 
 cleanup() {
     "$pohunek" service uninstall --stop-sessions --purge > /dev/null 2>&1 || true
-    rm -rf -- "$work"
+    rm -rf -- "$work" "$runtime"
 }
 trap cleanup EXIT
 
