@@ -33,8 +33,9 @@ printf 'check-setup: Cellar used: %s\n' "$(stat -f '%Su:%Sg %Lp' "$cellar")"
 work=$(mktemp -d "${RUNNER_TEMP:-${TMPDIR:-/tmp}}/check-setup.XXXXXX")
 chmod 0700 "$work"
 # A worker socket path is limited to 103 bytes on macOS, so the runtime
-# directory is a short private directory of its own.
-runtime=$(mktemp -d /tmp/phcs.XXXXXX)
+# directory is a short private directory of its own, below the real /private/tmp
+# (/tmp is a symbolic link, which the daemon refuses to open).
+runtime=$(mktemp -d /private/tmp/phcs.XXXXXX)
 chmod 0700 "$runtime"
 mkdir -m 0700 "$work/home"
 export HOME="$work/home" XDG_RUNTIME_DIR="$runtime"
