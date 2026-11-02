@@ -1,0 +1,63 @@
+#!/usr/bin/env bash
+# Install the service of the installed formula in a throwaway home, check that
+# the daemon loaded the catalog trust anchor, then run `pohunek setup`.
+#
+# usage: scripts/check-setup
+#
+# Run after `brew install zajca/pohunek/pohunek`. The home and the runtime
+# directory are private and new, so the run shares no state with the account
+# that runs it; the service is uninstalled again at the end.
+
+set -euo pipefail
+
+fail() {
+    printf 'check-setup: %s\n' "$*" >&2
+    exit 1
+}
+
+command -v jq > /dev/null || fail "jq is required"
+pohunek=$(brew --prefix pohunek)/bin/pohunek
+[ -x "$pohunek" ] || fail "pohunek is not installed: $pohunek"
+
+# A stock Apple-Silicon Homebrew has a group-writable Cellar (`<user>:admin`,
+# mode 775); the acceptance runs against that layout, so a runner without the
+# group write bit gets it first (the runner is a throwaway machine).
+cellar="$(brew --prefix)/Cellar"
+printf 'check-setup: Cellar before: %s\n' "$(stat -f '%Su:%Sg %Lp' "$cellar")"
+case "$(stat -f '%Sp' "$cellar")" in
+    ?????w????) ;;
+    *) chmod g+w "$cellar" ;;
+esac
+printf 'check-setup: Cellar used: %s\n' "$(stat -f '%Su:%Sg %Lp' "$cellar")"
+
+work=$(mktemp -d "${RUNNER_TEMP:-${TMPDIR:-/tmp}}/check-setup.XXXXXX")
+chmod 0700 "$work"
+# A worker socket path is limited to 103 bytes on macOS, so the runtime
+# directory is a short private directory of its own, below the real /private/tmp
+# (/tmp is a symbolic link, which the daemon refuses to open).
+runtime=$(mktemp -d /private/tmp/phcs.XXXXXX)
+chmod 0700 "$runtime"
+mkdir -m 0700 "$work/home"
+export HOME="$work/home" XDG_RUNTIME_DIR="$runtime"
+unset XDG_CONFIG_HOME XDG_DATA_HOME XDG_STATE_HOME
+
+cleanup() {
+    "$pohunek" service uninstall --stop-sessions --purge > /dev/null 2>&1 || true
+    rm -rf -- "$work" "$runtime"
+}
+trap cleanup EXIT
+
+"$pohunek" service install || fail "pohunek service install failed"
+
+doctor=$("$pohunek" doctor --json) || true
+status=$(printf '%s' "$doctor" | jq -r '[.. | objects | select(.name? == "catalog_trust_anchor")][0].status // "missing"')
+[ "$status" = ok ] || {
+    printf '%s\n' "$doctor" >&2
+    fail "catalog_trust_anchor is $status, expected ok"
+}
+
+if ! "$pohunek" setup --yes; then
+    "$pohunek" doctor --json >&2 || true
+    fail "pohunek setup refused the Homebrew layout after the service was installed"
+fi
+printf 'check-setup: service installed, the catalog trust anchor is loaded and setup applied\n'

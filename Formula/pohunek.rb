@@ -23,7 +23,12 @@ class Pohunek < Formula
     # `pohunek service install` copies the three binaries from the directory of
     # the canonicalized `pohunek` executable, so they must be siblings in one
     # real directory; the user-facing `pohunek` is a symlink into it.
-    libexec.install "pohunek", "pohunekd", "pohunek-sessiond"
+    # The catalog trust anchor and the `runtime/` tree (signed catalog, official
+    # package archives and their attestations) sit beside the daemon: the daemon
+    # reads both from its executable's directory. The archive MANIFEST and
+    # packaging/ stay out, so `pohunek setup` treats this layout as a package
+    # manager's and the formula checksum is its integrity anchor.
+    libexec.install "pohunek", "pohunekd", "pohunek-sessiond", "runtime-catalog-anchor.json", "runtime"
     bin.install_symlink libexec/"pohunek"
 
     bash_completion.install "completions/pohunek.bash" => "pohunek" if File.exist?("completions/pohunek.bash")
@@ -33,8 +38,9 @@ class Pohunek < Formula
 
   def caveats
     <<~EOS
-      Register the background service after installing:
+      Register the background service, then set pohunek up:
         pohunek service install
+        pohunek setup
 
       Run this after every `brew upgrade pohunek`:
         pohunek service upgrade
@@ -54,5 +60,8 @@ class Pohunek < Formula
     assert_match version.to_s, shell_output("#{bin}/pohunek --version")
     assert_match version.to_s, shell_output("#{libexec}/pohunekd --version")
     assert_match version.to_s, shell_output("#{libexec}/pohunek-sessiond --version")
+    assert_path_exists libexec/"runtime-catalog-anchor.json"
+    assert_path_exists libexec/"runtime/runtime-catalog.json"
+    refute_path_exists libexec/"MANIFEST"
   end
 end
