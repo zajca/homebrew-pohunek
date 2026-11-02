@@ -19,6 +19,17 @@ command -v jq > /dev/null || fail "jq is required"
 pohunek=$(brew --prefix pohunek)/bin/pohunek
 [ -x "$pohunek" ] || fail "pohunek is not installed: $pohunek"
 
+# A stock Apple-Silicon Homebrew has a group-writable Cellar (`<user>:admin`,
+# mode 775); the acceptance runs against that layout, so a runner without the
+# group write bit gets it first (the runner is a throwaway machine).
+cellar="$(brew --prefix)/Cellar"
+printf 'check-setup: Cellar before: %s\n' "$(stat -f '%Su:%Sg %Lp' "$cellar")"
+case "$(stat -f '%Sp' "$cellar")" in
+    ?????w????) ;;
+    *) chmod g+w "$cellar" ;;
+esac
+printf 'check-setup: Cellar used: %s\n' "$(stat -f '%Su:%Sg %Lp' "$cellar")"
+
 work=$(mktemp -d "${RUNNER_TEMP:-${TMPDIR:-/tmp}}/check-setup.XXXXXX")
 chmod 0700 "$work"
 mkdir -m 0700 "$work/home" "$work/run"
@@ -31,7 +42,10 @@ cleanup() {
 }
 trap cleanup EXIT
 
-"$pohunek" setup --yes || fail "pohunek setup refused the Homebrew layout"
+if ! "$pohunek" setup --yes; then
+    "$pohunek" doctor --json >&2 || true
+    fail "pohunek setup refused the Homebrew layout"
+fi
 
 doctor=$("$pohunek" doctor --json) || true
 status=$(printf '%s' "$doctor" | jq -r '[.checks[] | select(.name == "catalog_trust_anchor")][0].status // "missing"')
