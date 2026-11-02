@@ -63,6 +63,10 @@ jobs:
       - name: Check quarantine and signatures
         run: scripts/check-installed "${{ matrix.formula }}"
 
+      - name: Run setup in a throwaway home
+        if: ${{ matrix.formula == 'pohunek' }}
+        run: scripts/check-setup
+
       - name: Check that the installed core supports the surface protocol
         if: ${{ matrix.surface }}
         run: scripts/check-compatible "$SURFACE_PROTOCOL"

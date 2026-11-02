@@ -1,0 +1,42 @@
+#!/usr/bin/env bash
+# Run `pohunek setup` of the installed formula in a throwaway home and check that
+# the installed daemon loaded the catalog trust anchor.
+#
+# usage: scripts/check-setup
+#
+# Run after `brew install zajca/pohunek/pohunek`. The home and the runtime
+# directory are private and new, so the run shares no state with the account
+# that runs it; the service is uninstalled again at the end.
+
+set -euo pipefail
+
+fail() {
+    printf 'check-setup: %s\n' "$*" >&2
+    exit 1
+}
+
+command -v jq > /dev/null || fail "jq is required"
+pohunek=$(brew --prefix pohunek)/bin/pohunek
+[ -x "$pohunek" ] || fail "pohunek is not installed: $pohunek"
+
+work=$(mktemp -d "${RUNNER_TEMP:-${TMPDIR:-/tmp}}/check-setup.XXXXXX")
+chmod 0700 "$work"
+mkdir -m 0700 "$work/home" "$work/run"
+export HOME="$work/home" XDG_RUNTIME_DIR="$work/run"
+unset XDG_CONFIG_HOME XDG_DATA_HOME XDG_STATE_HOME
+
+cleanup() {
+    "$pohunek" service uninstall --stop-sessions --purge > /dev/null 2>&1 || true
+    rm -rf -- "$work"
+}
+trap cleanup EXIT
+
+"$pohunek" setup --yes || fail "pohunek setup refused the Homebrew layout"
+
+doctor=$("$pohunek" doctor --json) || true
+status=$(printf '%s' "$doctor" | jq -r '[.checks[] | select(.name == "catalog_trust_anchor")][0].status // "missing"')
+[ "$status" = ok ] || {
+    printf '%s\n' "$doctor" >&2
+    fail "catalog_trust_anchor is $status, expected ok"
+}
+printf 'check-setup: setup applied and the catalog trust anchor is loaded\n'
