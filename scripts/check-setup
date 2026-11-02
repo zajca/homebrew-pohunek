@@ -45,7 +45,7 @@ trap cleanup EXIT
 "$pohunek" service install || fail "pohunek service install failed"
 
 doctor=$("$pohunek" doctor --json) || true
-status=$(printf '%s' "$doctor" | jq -r '[.checks[] | select(.name == "catalog_trust_anchor")][0].status // "missing"')
+status=$(printf '%s' "$doctor" | jq -r '[.. | objects | select(.name? == "catalog_trust_anchor")][0].status // "missing"')
 [ "$status" = ok ] || {
     printf '%s\n' "$doctor" >&2
     fail "catalog_trust_anchor is $status, expected ok"
