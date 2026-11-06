@@ -23,12 +23,13 @@ class Pohunek < Formula
     # `pohunek service install` copies the three binaries from the directory of
     # the canonicalized `pohunek` executable, so they must be siblings in one
     # real directory; the user-facing `pohunek` is a symlink into it.
-    # The catalog trust anchor and the `runtime/` tree (signed catalog, official
-    # package archives and their attestations) sit beside the daemon: the daemon
-    # reads both from its executable's directory. The archive MANIFEST and
+    # The catalog trust anchor, the plugin index channel file and the `runtime/`
+    # tree (signed catalog, official package archives and their attestations) sit
+    # beside the daemon: the daemon reads them from its executable's directory, and
+    # without the channel file installs by id fail closed. The archive MANIFEST and
     # packaging/ stay out, so `pohunek setup` treats this layout as a package
     # manager's and the formula checksum is its integrity anchor.
-    libexec.install "pohunek", "pohunekd", "pohunek-sessiond", "runtime-catalog-anchor.json", "runtime"
+    libexec.install "pohunek", "pohunekd", "pohunek-sessiond", "runtime-catalog-anchor.json", "plugin-index-channel.json", "runtime"
     bin.install_symlink libexec/"pohunek"
 
     bash_completion.install "completions/pohunek.bash" => "pohunek" if File.exist?("completions/pohunek.bash")
@@ -60,6 +61,7 @@ class Pohunek < Formula
     assert_match version.to_s, shell_output("#{libexec}/pohunekd --version")
     assert_match version.to_s, shell_output("#{libexec}/pohunek-sessiond --version")
     assert_path_exists libexec/"runtime-catalog-anchor.json"
+    assert_path_exists libexec/"plugin-index-channel.json"
     assert_path_exists libexec/"runtime/runtime-catalog.json"
     refute_path_exists libexec/"MANIFEST"
   end
