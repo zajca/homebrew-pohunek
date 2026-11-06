@@ -48,8 +48,11 @@ jobs:
       - name: Trust the tap
         run: brew trust zajca/pohunek
 
+      # `brew style` installs its own linters (shellcheck, actionlint, ...) on
+      # demand. With HOMEBREW_NO_INSTALL_FROM_API set and no homebrew/core tap it
+      # cannot resolve them, so this step alone resolves formulae from the API.
       - name: Style
-        run: brew style zajca/pohunek
+        run: env -u HOMEBREW_NO_INSTALL_FROM_API brew style zajca/pohunek
 
       - name: Audit
         run: brew audit --strict --online --formula "zajca/pohunek/${{ matrix.formula }}"
