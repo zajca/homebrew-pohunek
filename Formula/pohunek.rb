@@ -29,7 +29,8 @@ class Pohunek < Formula
     # without the channel file installs by id fail closed. The archive MANIFEST and
     # packaging/ stay out, so `pohunek setup` treats this layout as a package
     # manager's and the formula checksum is its integrity anchor.
-    libexec.install "pohunek", "pohunekd", "pohunek-sessiond", "runtime-catalog-anchor.json", "plugin-index-channel.json", "runtime"
+    libexec.install "pohunek", "pohunekd", "pohunek-sessiond",
+                    "runtime-catalog-anchor.json", "plugin-index-channel.json", "runtime"
     bin.install_symlink libexec/"pohunek"
 
     bash_completion.install "completions/pohunek.bash" => "pohunek" if File.exist?("completions/pohunek.bash")
