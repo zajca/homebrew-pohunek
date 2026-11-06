@@ -48,6 +48,12 @@ jobs:
       - name: Trust the tap
         run: brew trust zajca/pohunek
 
+      # `brew style` runs shellcheck; with HOMEBREW_NO_INSTALL_FROM_API set and no
+      # homebrew/core tap it cannot resolve that formula, so it is installed from
+      # the API first.
+      - name: Install style tools
+        run: env -u HOMEBREW_NO_INSTALL_FROM_API brew install shellcheck
+
       - name: Style
         run: brew style zajca/pohunek
 
