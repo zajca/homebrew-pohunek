@@ -7,8 +7,8 @@
 class PohunekWeb < Formula
   desc "Web control center for supervising pohunek sessions"
   homepage "https://github.com/zajca/pohunek-work"
-  url "https://github.com/zajca/pohunek-work/releases/download/web-v0.3.1/pohunek-web-0.3.1-aarch64-apple-darwin.tar.gz"
-  sha256 "951ea03945e20290be729d1f0991455ec719e29cee2886fc93e3dff07a766283"
+  url "https://github.com/zajca/pohunek-work/releases/download/web-v0.4.0/pohunek-web-0.4.0-aarch64-apple-darwin.tar.gz"
+  sha256 "bce4f4eff8ff2be383c360884df39edbba43a02b1b5bfee912188e0b4e9da2e9"
   license "MIT"
 
   livecheck do
